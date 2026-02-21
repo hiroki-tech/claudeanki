@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anki送信ツール</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f3f4f6; min-height: 100vh; padding: 24px; }
+  .container { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; font-weight: 700; color: #1f2937; margin-bottom: 4px; }
+  .subtitle { font-size: 0.875rem; color: #6b7280; margin-bottom: 24px; }
+  .section { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; border: 1px solid #e5e7eb; }
+  .section-title { font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 12px; }
+  textarea {
+    width: 100%; height: 120px; border: 1px solid #d1d5db; border-radius: 8px;
+    padding: 10px 12px; font-size: 0.8rem; font-family: monospace; resize: vertical;
+    outline: none; transition: border-color 0.2s;
+  }
+  textarea:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
+  .load-btn {
+    margin-top: 10px; padding: 8px 20px; background: #3b82f6; color: white;
+    border: none; border-radius: 8px; font-size: 0.875rem; font-weight: 600;
+    cursor: pointer; transition: background 0.2s;
+  }
+  .load-btn:hover { background: #2563eb; }
+  .deck-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .deck-row label { font-size: 0.875rem; font-weight: 500; color: #374151; white-space: nowrap; }
+  .deck-row input {
+    flex: 1; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 12px;
+    font-size: 0.875rem; outline: none; transition: border-color 0.2s;
+  }
+  .deck-row input:focus { border-color: #3b82f6; }
+  .controls { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .ctrl-btn {
+    font-size: 0.8rem; padding: 6px 14px; border-radius: 8px; border: none;
+    cursor: pointer; font-weight: 500; transition: background 0.2s;
+  }
+  .ctrl-btn.all { background: #dbeafe; color: #1d4ed8; }
+  .ctrl-btn.all:hover { background: #bfdbfe; }
+  .ctrl-btn.none { background: #e5e7eb; color: #4b5563; }
+  .ctrl-btn.none:hover { background: #d1d5db; }
+  .count { margin-left: auto; font-size: 0.8rem; color: #9ca3af; }
+
+  /* カードリスト */
+  .card-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .card-item {
+    border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px 16px;
+    transition: all 0.15s; background: #f9fafb;
+  }
+  .card-item.checked { border-color: #60a5fa; background: white; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .card-item.review-marked { border-color: #f59e0b !important; background: #fffbeb !important; box-shadow: 0 1px 4px rgba(245,158,11,0.15) !important; opacity: 1 !important; }
+
+  .card-row { display: flex; gap: 12px; align-items: flex-start; }
+  .checkbox {
+    width: 20px; height: 20px; border-radius: 4px; border: 2px solid #d1d5db;
+    flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; background: white; cursor: pointer;
+  }
+  .card-item.checked .checkbox { background: #3b82f6; border-color: #3b82f6; }
+  .checkmark { display: none; }
+  .card-item.checked .checkmark { display: block; }
+
+  .card-content { flex: 1; min-width: 0; }
+  .card-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .qnum { font-size: 0.7rem; font-weight: 700; color: #2563eb; background: #eff6ff; padding: 2px 8px; border-radius: 4px; }
+  .qtag { font-size: 0.7rem; color: #9ca3af; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .qfront { font-size: 0.875rem; font-weight: 500; color: #1f2937; margin-bottom: 2px; }
+  .qback { font-size: 0.8rem; color: #6b7280; }
+
+  /* 修正ボタン */
+  .card-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+  .review-btn {
+    font-size: 0.75rem; padding: 4px 12px; border-radius: 6px; border: 1px solid #f59e0b;
+    background: white; color: #d97706; cursor: pointer; font-weight: 500;
+    transition: all 0.15s; display: flex; align-items: center; gap: 4px;
+  }
+  .review-btn:hover { background: #fef3c7; }
+  .review-btn.active { background: #f59e0b; color: white; border-color: #f59e0b; }
+
+  /* 修正理由パネル */
+  .review-panel {
+    display: none; margin-top: 10px; padding: 12px; background: #fffbeb;
+    border-radius: 8px; border: 1px solid #fde68a;
+  }
+  .review-panel.open { display: block; }
+  .review-panel select, .review-panel input {
+    width: 100%; padding: 7px 10px; border: 1px solid #fcd34d; border-radius: 6px;
+    font-size: 0.8rem; outline: none; background: white; margin-bottom: 8px;
+  }
+  .review-panel select:focus, .review-panel input:focus { border-color: #f59e0b; }
+  .review-panel-label { font-size: 0.75rem; font-weight: 600; color: #92400e; margin-bottom: 6px; }
+  .custom-input { display: none; }
+  .custom-input.show { display: block; }
+
+  /* 修正依頼まとめセクション */
+  .review-summary { background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 20px; margin-bottom: 16px; display: none; }
+  .review-summary.show { display: block; }
+  .review-summary-title { font-size: 0.875rem; font-weight: 600; color: #92400e; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .review-count-badge { background: #f59e0b; color: white; font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+  .copy-review-btn {
+    width: 100%; padding: 10px; border-radius: 8px; font-size: 0.875rem; font-weight: 700;
+    color: white; border: none; cursor: pointer; background: #d97706; transition: background 0.2s;
+  }
+  .copy-review-btn:hover { background: #b45309; }
+  .copy-review-btn.copied { background: #059669; }
+
+  /* 送信ボタン */
+  .send-btn {
+    width: 100%; padding: 14px; border-radius: 12px; font-size: 1rem; font-weight: 700;
+    color: white; border: none; cursor: pointer; transition: background 0.2s; background: #2563eb;
+  }
+  .send-btn:hover { background: #1d4ed8; }
+  .send-btn:disabled { background: #d1d5db; cursor: not-allowed; }
+  .status { margin-top: 12px; padding: 12px 16px; border-radius: 10px; font-size: 0.875rem; font-weight: 500; text-align: center; }
+  .status.success { background: #f0fdf4; border: 1px solid #86efac; color: #15803d; }
+  .status.error { background: #fef2f2; border: 1px solid #fca5a5; color: #dc2626; }
+  .status.loading { background: #eff6ff; border: 1px solid #93c5fd; color: #1d4ed8; }
+  .empty { text-align: center; color: #9ca3af; font-size: 0.875rem; padding: 32px; }
+  .json-example { font-size: 0.75rem; color: #6b7280; margin-top: 8px; background: #f9fafb; border-radius: 6px; padding: 8px 10px; font-family: monospace; }
+
+  /* ヘルプセクション */
+  .help-toggle {
+    display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600;
+    color: #6b7280; cursor: pointer; user-select: none; margin-bottom: 0;
+    background: none; border: none; padding: 0;
+  }
+  .help-toggle:hover { color: #374151; }
+  .help-toggle .arrow { transition: transform 0.2s; display: inline-block; }
+  .help-toggle.open .arrow { transform: rotate(90deg); }
+  .help-body { display: none; margin-top: 14px; }
+  .help-body.open { display: block; }
+  .help-step { display: flex; gap: 12px; margin-bottom: 14px; align-items: flex-start; }
+  .help-step-num {
+    width: 22px; height: 22px; border-radius: 50%; background: #3b82f6; color: white;
+    font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .help-step-text { font-size: 0.8rem; color: #374151; line-height: 1.6; }
+  .help-step-text strong { color: #1f2937; }
+  .help-code {
+    background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 12px 14px;
+    font-family: monospace; font-size: 0.75rem; line-height: 1.7; margin-top: 8px;
+    overflow-x: auto; white-space: pre;
+  }
+  .help-code .key { color: #93c5fd; }
+  .help-code .val { color: #86efac; }
+  .help-code .comment { color: #94a3b8; }
+  .help-fields { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .help-field { display: flex; gap: 8px; font-size: 0.78rem; }
+  .help-field-key { font-weight: 700; color: #2563eb; min-width: 60px; font-family: monospace; }
+  .help-field-desc { color: #4b5563; }
+  .help-field-req { font-size: 0.65rem; color: #dc2626; font-weight: 600; margin-left: 4px; }
+  .help-field-opt { font-size: 0.65rem; color: #9ca3af; font-weight: 600; margin-left: 4px; }
+  .help-divider { border: none; border-top: 1px solid #e5e7eb; margin: 14px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📚 Anki送信ツール</h1>
+  <p class="subtitle">JSONを貼り付けて問題を選択し、Ankiに直接送信</p>
+
+  <!-- ヘルプ -->
+  <div class="section">
+    <button class="help-toggle" id="helpToggle" onclick="toggleHelp()">
+      <span class="arrow">▶</span> 使い方・JSONの作り方
+    </button>
+    <div class="help-body" id="helpBody">
+      <div class="help-step"><div class="help-step-num">1</div><div class="help-step-text"><strong>PDFをClaudeに送信</strong><br>PDFをClaude.aiにアップロードし「全セクション網羅して問題を作って。タグはXX、リンクはXX」と指示する。</div></div>
+      <div class="help-step"><div class="help-step-num">2</div><div class="help-step-text"><strong>ClaudeがJSONを出力</strong><br>以下の形式のJSONが出力される。コピーして下の入力欄に貼り付ける。<div class="help-code">[
+  {
+    "front": "質問文",
+    "back":  "答え",
+    "extra": "補足・解説（省略可）",
+    "tag":   "画像診断::2023::07::タイトル"
+  }
+]</div><div class="help-fields"><div class="help-field"><span class="help-field-key">front</span><span class="help-field-req">必須</span><span class="help-field-desc">カード表面の質問文</span></div><div class="help-field"><span class="help-field-key">back</span><span class="help-field-req">必須</span><span class="help-field-desc">カード裏面の答え</span></div><div class="help-field"><span class="help-field-key">extra</span><span class="help-field-opt">任意</span><span class="help-field-desc">裏面下部に表示される補足・ソースリンク</span></div><div class="help-field"><span class="help-field-key">tag</span><span class="help-field-opt">任意</span><span class="help-field-desc">Ankiのタグ。::で階層化できる</span></div></div></div></div>
+      <div class="help-step"><div class="help-step-num">3</div><div class="help-step-text"><strong>問題を選択してAnkiに送信</strong><br>チェックボックスで送信する問題を選び「Ankiに送信」ボタンを押す。<strong>✏️ 修正を依頼</strong>ボタンで修正理由を選択しClaudeにまとめて修正依頼できる。</div></div>
+      <hr class="help-divider">
+      <div style="font-size:0.75rem;color:#6b7280;">💡 <strong>タグ命名規則：</strong>画像診断::年::号::タイトル　または　claude::領域::疾患カテゴリ::疾患名</div>
+    </div>
+  </div>
+
+  <!-- JSON入力 -->
+  <div class="section">
+    <div class="section-title">① JSONを貼り付け</div>
+    <textarea id="jsonInput" placeholder="Claudeが出力したJSONをここに貼り付けてください..."></textarea>
+    <div class="json-example">例: [{"front": "質問", "back": "答え", "extra": "補足", "tag": "画像診断::2023::07::タイトル"}]</div>
+    <button class="load-btn" onclick="loadJSON()">読み込む</button>
+  </div>
+
+  <!-- 修正依頼まとめ -->
+  <div class="review-summary" id="reviewSummary">
+    <div class="review-summary-title">
+      ✏️ 修正依頼リスト
+      <span class="review-count-badge" id="reviewCountBadge">0</span>
+    </div>
+    <button class="copy-review-btn" id="copyReviewBtn" onclick="copyReviewRequest()">
+      Claudeへの修正依頼をコピー
+    </button>
+  </div>
+
+  <!-- カード選択 -->
+  <div class="section" id="cardSection" style="display:none">
+    <div class="section-title">② 送信する問題を選択</div>
+
+    <div class="deck-row">
+      <label>デッキ名：</label>
+      <input type="text" id="deckName" value="画像診断">
+    </div>
+
+    <div class="controls">
+      <button class="ctrl-btn all" onclick="toggleAll(true)">全選択</button>
+      <button class="ctrl-btn none" onclick="toggleAll(false)">全解除</button>
+      <span class="count" id="countLabel">0 / 0 問選択中</span>
+    </div>
+
+    <div class="card-list" id="cardList"></div>
+
+    <button class="send-btn" id="sendBtn" onclick="sendToAnki()">Ankiに送信</button>
+    <div id="statusMsg" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+  let questions = [];
+  let checked = {};
+  let reviewReasons = {}; // { index: { reason, custom } }
+
+  const REASON_OPTIONS = [
+    "── 問題文の問題 ──",
+    "問題文がヒントになっている",
+    "問題文が長すぎる・複雑すぎる",
+    "問題の範囲が広すぎる",
+    "問い方が曖昧",
+    "── 答えの問題 ──",
+    "答えが長すぎる",
+    "答えに含める情報が多すぎる",
+    "答えが短すぎて不十分",
+    "ExtraではなくBackに入れるべき情報がある",
+    "── 内容の問題 ──",
+    "医学的に不正確",
+    "重要なポイントが抜けている",
+    "問題自体が重複している",
+    "── 形式の問題 ──",
+    "Q&A形式よりCloze形式にしたい",
+    "問題を分割したい",
+    "問題を統合したい",
+    "── その他 ──",
+    "その他（カスタム）"
+  ];
+
+  function loadJSON() {
+    const raw = document.getElementById('jsonInput').value.trim();
+    try {
+      const data = JSON.parse(raw);
+      if (!Array.isArray(data)) throw new Error('配列形式で入力してください');
+      questions = data;
+      checked = {};
+      reviewReasons = {};
+      questions.forEach((_, i) => checked[i] = true);
+      renderCards();
+      document.getElementById('cardSection').style.display = 'block';
+      document.getElementById('statusMsg').style.display = 'none';
+      updateReviewSummary();
+    } catch(e) {
+      alert('JSONの形式が正しくありません: ' + e.message);
+    }
+  }
+
+  function renderCards() {
+    const list = document.getElementById('cardList');
+    if (questions.length === 0) {
+      list.innerHTML = '<div class="empty">問題がありません</div>';
+      updateCount();
+      return;
+    }
+
+    list.innerHTML = questions.map((q, i) => {
+      const isChecked = checked[i];
+      const isReview = reviewReasons[i] !== undefined;
+      const reasonData = reviewReasons[i] || {};
+
+      const optionsHtml = REASON_OPTIONS.map(opt => {
+        const isHeader = opt.startsWith('──');
+        if (isHeader) return `<option disabled>${opt}</option>`;
+        return `<option value="${opt}" ${reasonData.reason === opt ? 'selected' : ''}>${opt}</option>`;
+      }).join('');
+
+      return `
+        <div class="card-item ${isChecked ? 'checked' : ''} ${isReview ? 'review-marked' : ''}" id="card-${i}">
+          <div class="card-row">
+            <div class="checkbox" onclick="toggle(${i})">
+              <svg class="checkmark" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
+                <path d="M5 13l4 4L19 7"/>
+              </svg>
+            </div>
+            <div class="card-content">
+              <div class="card-meta">
+                <span class="qnum">Q${i+1}</span>
+                <span class="qtag">${q.tag || ''}</span>
+              </div>
+              <div class="qfront">${q.front}</div>
+              <div class="qback">${q.back}</div>
+              <div class="card-actions">
+                <button class="review-btn ${isReview ? 'active' : ''}" onclick="toggleReviewPanel(${i})">
+                  ✏️ ${isReview ? '修正依頼中' : '修正を依頼'}
+                </button>
+              </div>
+              <div class="review-panel ${isReview ? 'open' : ''}" id="review-panel-${i}">
+                <div class="review-panel-label">修正理由を選択</div>
+                <select id="reason-select-${i}" onchange="onReasonChange(${i})">
+                  <option value="">選択してください</option>
+                  ${optionsHtml}
+                </select>
+                <input
+                  type="text"
+                  class="custom-input ${reasonData.reason === 'その他（カスタム）' ? 'show' : ''}"
+                  id="reason-custom-${i}"
+                  placeholder="修正理由を入力..."
+                  value="${reasonData.custom || ''}"
+                  oninput="onCustomInput(${i})"
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    updateCount();
+  }
+
+  function toggle(i) {
+    checked[i] = !checked[i];
+    renderCards();
+  }
+
+  function toggleAll(val) {
+    questions.forEach((_, i) => checked[i] = val);
+    renderCards();
+  }
+
+  function toggleReviewPanel(i) {
+    const panel = document.getElementById(`review-panel-${i}`);
+    if (reviewReasons[i] !== undefined) {
+      // 修正依頼解除
+      delete reviewReasons[i];
+    } else {
+      // 修正依頼追加（理由未選択状態で開く）
+      reviewReasons[i] = { reason: '', custom: '' };
+    }
+    renderCards();
+    updateReviewSummary();
+  }
+
+  function onReasonChange(i) {
+    const val = document.getElementById(`reason-select-${i}`).value;
+    const customInput = document.getElementById(`reason-custom-${i}`);
+    if (val === 'その他（カスタム）') {
+      customInput.classList.add('show');
+    } else {
+      customInput.classList.remove('show');
+    }
+    if (!reviewReasons[i]) reviewReasons[i] = {};
+    reviewReasons[i].reason = val;
+    reviewReasons[i].custom = '';
+    updateReviewSummary();
+  }
+
+  function onCustomInput(i) {
+    const val = document.getElementById(`reason-custom-${i}`).value;
+    if (!reviewReasons[i]) reviewReasons[i] = {};
+    reviewReasons[i].custom = val;
+    updateReviewSummary();
+  }
+
+  function updateReviewSummary() {
+    const keys = Object.keys(reviewReasons);
+    const summary = document.getElementById('reviewSummary');
+    const badge = document.getElementById('reviewCountBadge');
+    if (keys.length > 0) {
+      summary.classList.add('show');
+      badge.textContent = keys.length;
+    } else {
+      summary.classList.remove('show');
+    }
+  }
+
+  function copyReviewRequest() {
+    const lines = ['以下の問題の修正をお願いします：\n'];
+    Object.entries(reviewReasons).forEach(([i, data]) => {
+      const q = questions[i];
+      const reason = data.reason === 'その他（カスタム）'
+        ? (data.custom || '理由未入力')
+        : (data.reason || '理由未選択');
+      lines.push(`【Q${parseInt(i)+1}】`);
+      lines.push(`表面：${q.front}`);
+      lines.push(`裏面：${q.back}`);
+      lines.push(`修正理由：${reason}`);
+      lines.push('');
+    });
+
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      const btn = document.getElementById('copyReviewBtn');
+      btn.textContent = '✓ コピーしました！Claudeに貼り付けてください';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'Claudeへの修正依頼をコピー';
+        btn.classList.remove('copied');
+      }, 3000);
+    });
+  }
+
+  function updateCount() {
+    const sel = Object.values(checked).filter(Boolean).length;
+    document.getElementById('countLabel').textContent = `${sel} / ${questions.length} 問選択中`;
+    const btn = document.getElementById('sendBtn');
+    btn.disabled = sel === 0;
+    btn.textContent = sel === 0 ? '問題を選択してください' : `選択した ${sel} 問をAnkiに送信`;
+  }
+
+  async function ankiRequest(action, params) {
+    const res = await fetch('http://127.0.0.1:8765', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, version: 6, params })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    return data.result;
+  }
+
+  function showStatus(type, msg) {
+    const el = document.getElementById('statusMsg');
+    el.style.display = 'block';
+    el.className = 'status ' + type;
+    el.textContent = msg;
+  }
+
+  async function sendToAnki() {
+    const selected = questions.filter((_, i) => checked[i]);
+    if (selected.length === 0) return;
+    const deckName = document.getElementById('deckName').value.trim() || '画像診断';
+    document.getElementById('sendBtn').disabled = true;
+    showStatus('loading', '送信中...');
+    try {
+      const decks = await ankiRequest('deckNames', {});
+      if (!decks.includes(deckName)) {
+        await ankiRequest('createDeck', { deck: deckName });
+      }
+      const notes = selected.map(q => ({
+        deckName,
+        modelName: 'Basic',
+        fields: {
+          Front: q.front,
+          Back: `${q.back}${q.extra ? '<br><br><small style="color:#666">' + q.extra + '</small>' : ''}`,
+        },
+        tags: (q.tag || '').split(' '),
+        options: { allowDuplicate: false, duplicateScope: 'deck' }
+      }));
+      const result = await ankiRequest('addNotes', { notes });
+      const failed = result.filter(r => r === null).length;
+      const succeeded = result.length - failed;
+      if (failed > 0 && succeeded === 0) {
+        showStatus('error', '全問が重複のためスキップされました。');
+      } else if (failed > 0) {
+        showStatus('error', `${succeeded}問を追加しました。${failed}問は重複のためスキップ。`);
+      } else {
+        showStatus('success', `✓ ${succeeded}問をデッキ「${deckName}」に送信しました！`);
+      }
+    } catch(e) {
+      showStatus('error', 'Ankiに接続できませんでした。Ankiが起動しているか確認してください。');
+    } finally {
+      updateCount();
+    }
+  }
+
+  function toggleHelp() {
+    const btn = document.getElementById('helpToggle');
+    const body = document.getElementById('helpBody');
+    btn.classList.toggle('open');
+    body.classList.toggle('open');
+  }
+</script>
+</body>
+</html>
