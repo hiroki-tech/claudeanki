@@ -190,6 +190,23 @@
 ]</div><div class="help-fields"><div class="help-field"><span class="help-field-key">front</span><span class="help-field-req">必須</span><span class="help-field-desc">カード表面の質問文</span></div><div class="help-field"><span class="help-field-key">back</span><span class="help-field-req">必須</span><span class="help-field-desc">カード裏面の答え</span></div><div class="help-field"><span class="help-field-key">extra</span><span class="help-field-opt">任意</span><span class="help-field-desc">裏面下部に表示される補足・ソースリンク</span></div><div class="help-field"><span class="help-field-key">tag</span><span class="help-field-opt">任意</span><span class="help-field-desc">Ankiのタグ。::で階層化できる</span></div></div></div></div>
       <div class="help-step"><div class="help-step-num">3</div><div class="help-step-text"><strong>問題を選択してAnkiに送信</strong><br>チェックボックスで送信する問題を選び「Ankiに送信」ボタンを押す。<strong>✏️ 修正を依頼</strong>ボタンで修正理由を選択しClaudeにまとめて修正依頼できる。</div></div>
       <hr class="help-divider">
+
+      <div style="font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:10px;">⚙️ AnkiConnect の設定（初回のみ）</div>
+      <div class="help-step"><div class="help-step-num">1</div><div class="help-step-text"><strong>AnkiConnectをインストール</strong><br>Anki → ツール → アドオン → コードを入力： <strong>2055492159</strong> → OK → Ankiを再起動</div></div>
+      <div class="help-step"><div class="help-step-num">2</div><div class="help-step-text"><strong>CORSの設定</strong><br>Anki → ツール → アドオン → AnkiConnect → Config を以下に書き換えて保存：<div class="help-code">{
+    "apiKey": null,
+    "apiLogPath": null,
+    "ignoreOriginList": [],
+    "webBindAddress": "127.0.0.1",
+    "webBindPort": 8765,
+    "webCorsOriginList": [
+        "http://localhost",
+        "https://hiroki-tech.github.io"
+    ]
+}</div></div></div>
+      <div class="help-step"><div class="help-step-num">3</div><div class="help-step-text"><strong>Ankiを再起動</strong><br>設定を保存したらAnkiを完全に終了して再起動する。以降はAnkiを起動したままこのツールを使う。</div></div>
+
+      <hr class="help-divider">
       <div style="font-size:0.75rem;color:#6b7280;">💡 <strong>タグ命名規則：</strong>画像診断::年::号::タイトル　または　claude::領域::疾患カテゴリ::疾患名</div>
     </div>
   </div>
