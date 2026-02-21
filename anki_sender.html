@@ -66,7 +66,20 @@
   .qnum { font-size: 0.7rem; font-weight: 700; color: #2563eb; background: #eff6ff; padding: 2px 8px; border-radius: 4px; }
   .qtag { font-size: 0.7rem; color: #9ca3af; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .qfront { font-size: 0.875rem; font-weight: 500; color: #1f2937; margin-bottom: 2px; }
-  .qback { font-size: 0.8rem; color: #6b7280; }
+  .qback { font-size: 0.8rem; color: #6b7280; margin-bottom: 2px; }
+  .qextra { font-size: 0.75rem; color: #9ca3af; background: #f9fafb; border-radius: 6px; padding: 6px 8px; margin-top: 4px; border-left: 2px solid #e5e7eb; }
+  .qextra a { color: #3b82f6; }
+  .deck-row select {
+    flex: 1; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 12px;
+    font-size: 0.875rem; outline: none; transition: border-color 0.2s; background: white;
+  }
+  .deck-row select:focus { border-color: #3b82f6; }
+  .fetch-deck-btn {
+    padding: 8px 14px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db;
+    border-radius: 8px; font-size: 0.8rem; font-weight: 500; cursor: pointer; white-space: nowrap;
+    transition: background 0.2s;
+  }
+  .fetch-deck-btn:hover { background: #e5e7eb; }
 
   /* 修正ボタン */
   .card-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
@@ -206,7 +219,10 @@
 
     <div class="deck-row">
       <label>デッキ名：</label>
-      <input type="text" id="deckName" value="画像診断">
+      <select id="deckName">
+        <option value="画像診断">画像診断</option>
+      </select>
+      <button class="fetch-deck-btn" onclick="fetchDecks()">↻ 取得</button>
     </div>
 
     <div class="controls">
@@ -302,6 +318,7 @@
               </div>
               <div class="qfront">${q.front}</div>
               <div class="qback">${q.back}</div>
+              ${q.extra ? `<div class="qextra">${q.extra}</div>` : ''}
               <div class="card-actions">
                 <button class="review-btn ${isReview ? 'active' : ''}" onclick="toggleReviewPanel(${i})">
                   ✏️ ${isReview ? '修正依頼中' : '修正を依頼'}
@@ -419,6 +436,19 @@
     btn.textContent = sel === 0 ? '問題を選択してください' : `選択した ${sel} 問をAnkiに送信`;
   }
 
+  async function fetchDecks() {
+    try {
+      const decks = await ankiRequest('deckNames', {});
+      const select = document.getElementById('deckName');
+      const current = select.value;
+      select.innerHTML = decks.sort().map(d =>
+        `<option value="${d}" ${d === current ? 'selected' : ''}>${d}</option>`
+      ).join('');
+    } catch(e) {
+      alert('Ankiに接続できませんでした。Ankiが起動しているか確認してください。');
+    }
+  }
+
   async function ankiRequest(action, params) {
     const res = await fetch('http://127.0.0.1:8765', {
       method: 'POST',
@@ -440,7 +470,7 @@
   async function sendToAnki() {
     const selected = questions.filter((_, i) => checked[i]);
     if (selected.length === 0) return;
-    const deckName = document.getElementById('deckName').value.trim() || '画像診断';
+    const deckName = document.getElementById('deckName').value || '画像診断';
     document.getElementById('sendBtn').disabled = true;
     showStatus('loading', '送信中...');
     try {
