@@ -69,6 +69,9 @@
   .qback { font-size: 0.8rem; color: #6b7280; margin-bottom: 2px; }
   .qextra { font-size: 0.75rem; color: #9ca3af; background: #f9fafb; border-radius: 6px; padding: 6px 8px; margin-top: 4px; border-left: 2px solid #e5e7eb; }
   .qextra a { color: #3b82f6; }
+  [contenteditable="true"] { cursor: text; border-radius: 4px; transition: background 0.15s; outline: none; }
+  [contenteditable="true"]:hover { background: #f0f7ff; }
+  [contenteditable="true"]:focus { background: #e8f2ff; box-shadow: 0 0 0 2px rgba(59,130,246,0.3); padding: 2px 4px; }
   .deck-row select {
     flex: 1; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 12px;
     font-size: 0.875rem; outline: none; transition: border-color 0.2s; background: white;
@@ -80,6 +83,23 @@
     transition: background 0.2s;
   }
   .fetch-deck-btn:hover { background: #e5e7eb; }
+
+  /* 日付タグ */
+  .datetag-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+  .datetag-row input[type="date"] {
+    border: 1px solid #d1d5db; border-radius: 8px; padding: 7px 10px;
+    font-size: 0.875rem; outline: none; transition: border-color 0.2s; background: white;
+  }
+  .datetag-row input[type="date"]:focus { border-color: #3b82f6; }
+  .datetag-event {
+    flex: 1; min-width: 140px; border: 1px solid #d1d5db; border-radius: 8px; padding: 7px 10px;
+    font-size: 0.875rem; outline: none; transition: border-color 0.2s;
+  }
+  .datetag-event:focus { border-color: #3b82f6; }
+  .datetag-preview {
+    font-size: 0.75rem; color: #6b7280; background: #f3f4f6; border-radius: 6px;
+    padding: 4px 10px; font-family: monospace;
+  }
 
   /* 修正ボタン */
   .card-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
@@ -237,10 +257,18 @@
     <div class="deck-row">
       <label>デッキ名：</label>
       <select id="deckName">
-        <option value="画像診断">画像診断</option>
+        <option value="claude">claude</option>
       </select>
       <button class="fetch-deck-btn" onclick="fetchDecks()">↻ 取得</button>
     </div>
+
+    <div style="font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:8px;">📅 今日のタグ（全カードに追加）</div>
+    <div class="datetag-row">
+      <input type="date" id="dateTagDate">
+      <input type="text" class="datetag-event" id="dateTagEvent" placeholder="メインイベント（例：整形外科カンファ）">
+    </div>
+    <div class="datetag-preview" id="dateTagPreview">タグ: —</div>
+    <br>
 
     <div class="controls">
       <button class="ctrl-btn all" onclick="toggleAll(true)">全選択</button>
@@ -259,6 +287,38 @@
   let questions = [];
   let checked = {};
   let reviewReasons = {}; // { index: { reason, custom } }
+
+  function initDateTag() {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth()+1).padStart(2,'0');
+    const dd = String(today.getDate()).padStart(2,'0');
+    const input = document.getElementById('dateTagDate');
+    if (input) {
+      input.value = `${yyyy}-${mm}-${dd}`;
+    }
+    updateDateTagPreview();
+  }
+
+  function getDateTag() {
+    const dateInput = document.getElementById('dateTagDate').value;
+    const event = document.getElementById('dateTagEvent').value.trim();
+    if (!dateInput) return '';
+    const [yyyy, mm, dd] = dateInput.split('-');
+    const base = `${yyyy}::${mm}::${dd}`;
+    return event ? `${base}(${event})` : base;
+  }
+
+  function updateDateTagPreview() {
+    const tag = getDateTag();
+    document.getElementById('dateTagPreview').textContent = tag ? `タグ: ${tag}` : 'タグ: —';
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    initDateTag();
+    document.getElementById('dateTagDate').addEventListener('input', updateDateTagPreview);
+    document.getElementById('dateTagEvent').addEventListener('input', updateDateTagPreview);
+  });
 
   const REASON_OPTIONS = [
     "── 問題文の問題 ──",
@@ -333,9 +393,9 @@
                 <span class="qnum">Q${i+1}</span>
                 <span class="qtag">${q.tag || ''}</span>
               </div>
-              <div class="qfront">${q.front}</div>
-              <div class="qback">${q.back}</div>
-              ${q.extra ? `<div class="qextra">${q.extra}</div>` : ''}
+              <div class="qfront" contenteditable="true" oninput="updateField(${i}, 'front', this.innerText)" title="クリックして編集">${q.front}</div>
+              <div class="qback" contenteditable="true" oninput="updateField(${i}, 'back', this.innerText)" title="クリックして編集">${q.back}</div>
+              ${q.extra ? `<div class="qextra" contenteditable="true" oninput="updateField(${i}, 'extra', this.innerText)" title="クリックして編集">${q.extra}</div>` : ''}
               <div class="card-actions">
                 <button class="review-btn ${isReview ? 'active' : ''}" onclick="toggleReviewPanel(${i})">
                   ✏️ ${isReview ? '修正依頼中' : '修正を依頼'}
@@ -362,6 +422,10 @@
       `;
     }).join('');
     updateCount();
+  }
+
+  function updateField(i, field, value) {
+    questions[i][field] = value;
   }
 
   function toggle(i) {
@@ -502,7 +566,12 @@
           Front: q.front,
           Back: `${q.back}${q.extra ? '<br><br><small style="color:#666">' + q.extra + '</small>' : ''}`,
         },
-        tags: (q.tag || '').split(' '),
+        tags: (() => {
+          const baseTags = (q.tag || '').split(' ').filter(Boolean);
+          const dateTag = getDateTag();
+          if (dateTag) baseTags.push(dateTag);
+          return baseTags;
+        })(),
         options: { allowDuplicate: false, duplicateScope: 'deck' }
       }));
       const result = await ankiRequest('addNotes', { notes });
